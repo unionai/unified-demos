@@ -3,15 +3,23 @@ import union.artifacts
 from flytekit import FlyteDirectory
 from datasets import load_dataset
 import pandas as pd
+from typing_extensions import Annotated
 from common.functions import get_data_databricks
 from common.functions import featurize
+from common.functions import create_search_grid
+from common.functions import get_training_split
+from common.functions import train_classifier_hpo
+from common.functions import get_best
 from common.common_dataclasses import SearchSpace
+from common.common_dataclasses import Hyperparameters
+from common.common_dataclasses import HpoResults
 
 
 # Configuration Parameters
-enable_data_cache = False
-enable_model_cache = False
+enable_data_cache = True
+enable_model_cache = True
 cache_version = "3"
+fail_workflow = False
 
 # Union Objects Definitions
 ClsModelResults = union.artifacts.Artifact(
@@ -22,9 +30,9 @@ image = union.ImageSpec(
     builder="union",
     base_image="ghcr.io/unionai-oss/union:py3.10-latest",
     name="unified_demo",
-    registry="pablounionai",
     packages=["scikit-learn", "datasets", "pandas",
-              "union", "flytekitplugins-spark", "delta-sharing"],
+              "union", "flytekitplugins-spark", "delta-sharing",
+              "tabulate"],
 
 )
 
@@ -82,14 +90,57 @@ def tsk_featurize(df: pd.DataFrame) -> pd.DataFrame:
     return featurize(df)
 
 
+@hpo_actor.task
+def tsk_train_model_hpo_df(
+        hp: Hyperparameters,
+        df: pd.DataFrame) -> HpoResults:
+    splits = get_training_split(df)
+    results = train_classifier_hpo(
+        hp, splits)
+    results.data = df
+    return results
+
+
+@union.dynamic(
+    container_image=image,
+    cache=enable_model_cache,
+    cache_version=cache_version)
+def tsk_hyperparameter_optimization(
+        grid: list[Hyperparameters],
+        df: pd.DataFrame) -> list[HpoResults]:
+
+    models = []
+    for hp in grid:
+        res = tsk_train_model_hpo_df(hp, df)
+        models.append(res)
+    return models
+
+
+@hpo_actor.task(
+    cache=enable_model_cache,
+    cache_version=cache_version)
+def tsk_get_best(results: list[HpoResults]) -> HpoResults:
+    return get_best(results)
+
+
+@hpo_actor.task
+def tsk_register_fd_artifact(results: HpoResults)\
+        -> Annotated[FlyteDirectory, ClsModelResults]:
+
+    return ClsModelResults.create_from(
+        results.to_flytedir(),
+        results.get_model_card()
+        )
+
+
 @union.task(
     container_image=image,
     requests=union.Resources(mem="6Gi")
 )
 def tsk_failure(df: pd.DataFrame, fd: FlyteDirectory) -> None:
-    fail = True
+    fail = fail_workflow
     if fail:
-        raise Exception("Failure")
+        raise Exception("Failure on purpose")
 
 
 # Workflow Definition
@@ -97,9 +148,16 @@ def tsk_failure(df: pd.DataFrame, fd: FlyteDirectory) -> None:
 def unified_demo_wf():
 
     df = tsk_get_data_hf()
-    fdf = tsk_featurize()
+    fdf = tsk_featurize(df)
 
     ss = SearchSpace(
         max_depth=[10, 20],
         max_leaf_nodes=[10, 20],
         n_estimators=[10, 20])
+
+    grid = create_search_grid(ss)
+    models = tsk_hyperparameter_optimization(grid, fdf)
+    best = tsk_get_best(models)
+    logged_artifact = tsk_register_fd_artifact(best)
+
+    tsk_failure(fdf, logged_artifact)
