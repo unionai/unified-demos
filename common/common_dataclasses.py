@@ -149,3 +149,25 @@ class HpoResults:
         retVal.model = model
         retVal.data = data
         return retVal
+
+
+class ModelProductionTestResults:
+    promote_model: bool
+    target_model_acc: float
+    current_prod_model_acc: float
+
+    def __init__(
+            self, promote_model: bool, target_model_acc: float,
+            current_prod_model_acc: float):
+        self.promote_model = promote_model
+        self.target_model_acc = target_model_acc
+        self.current_prod_model_acc = current_prod_model_acc
+
+    def get_card(self):
+        if self.promote_model:
+            contents = "Recommendation is to promote the model to prod\n\n"
+        else:
+            contents = "Recommendation is to not promote the model to prod\n\n"
+        contents += f"Target Model F1: {self.target_model_acc}\n\n"\
+            f"Current Production Model F1: {self.current_prod_model_acc}\n"
+        return ModelCard(contents)

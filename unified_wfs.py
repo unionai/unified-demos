@@ -20,10 +20,12 @@ enable_data_cache = True
 enable_model_cache = True
 cache_version = "3"
 fail_workflow = False
+environment = "dev"
 
 # Union Objects Definitions
-ClsModelResults = union.artifacts.Artifact(
-    name="unified_demo_model_results"
+UnifiedTrainedModel = union.artifacts.Artifact(
+    name="unified_trained_model",
+    partition_keys=["environment"]
 )
 
 image = union.ImageSpec(
@@ -125,11 +127,12 @@ def tsk_get_best(results: list[HpoResults]) -> HpoResults:
 
 @hpo_actor.task
 def tsk_register_fd_artifact(results: HpoResults)\
-        -> Annotated[FlyteDirectory, ClsModelResults]:
+        -> Annotated[FlyteDirectory, UnifiedTrainedModel]:
 
-    return ClsModelResults.create_from(
+    return UnifiedTrainedModel.create_from(
         results.to_flytedir(),
-        results.get_model_card()
+        results.get_model_card(),
+        environment=environment
         )
 
 
