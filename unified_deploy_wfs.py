@@ -76,6 +76,16 @@ def test_model_for_production(
 
 
 @union.workflow
+def promote_last_dev_to_prod_wf(
+        target_model: FlyteDirectory = model_query
+        ):
+    model = tsk_load_model(target_model)\
+        .with_overrides(name="load_target_model")
+    return tsk_promote_model(model, production_environment)\
+        .with_overrides(name="promote_to_prod")
+
+
+@union.workflow
 def promote_to_prod_wf(
         test_results: ModelProductionTestResults = promotion_query,
         curr_prod_model: FlyteDirectory = model_query_prod,
