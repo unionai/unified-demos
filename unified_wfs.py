@@ -17,7 +17,7 @@ from common.common_dataclasses import HpoResults
 
 # Configuration Parameters
 enable_data_cache = True
-enable_model_cache = True
+enable_model_cache = False
 cache_version = "3"
 fail_workflow = False
 environment = "dev"
@@ -140,15 +140,14 @@ def tsk_register_fd_artifact(results: HpoResults)\
     container_image=image,
     requests=union.Resources(mem="6Gi")
 )
-def tsk_failure(df: pd.DataFrame, fd: FlyteDirectory) -> None:
-    fail = fail_workflow
+def tsk_failure(fail: bool, df: pd.DataFrame, fd: FlyteDirectory) -> None:
     if fail:
         raise Exception("Failure on purpose")
 
 
 # Workflow Definition
 @union.workflow
-def unified_demo_wf():
+def unified_demo_wf(fail: bool = fail_workflow):
 
     df = tsk_get_data_hf()
     fdf = tsk_featurize(df)
@@ -163,4 +162,4 @@ def unified_demo_wf():
     best = tsk_get_best(models)
     logged_artifact = tsk_register_fd_artifact(best)
 
-    tsk_failure(fdf, logged_artifact)
+    tsk_failure(fail, fdf, logged_artifact)
