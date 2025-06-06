@@ -63,7 +63,15 @@ def get_data() -> FlyteFile:
     container_image=image_spec,
 )
 def train_random_forest(data_file: FlyteFile) -> int:
+
     spark = flytekit.current_context().spark_session
+
+    #url = "https://raw.githubusercontent.com/selva86/datasets/master/Iris.csv"
+    #spark.sparkContext.addFile(url)
+
+    #df = spark.read.csv(SparkFiles.get("Iris.csv"), header=True, inferSchema=True)
+
+    #df.show(5)
     data_file.download()
     df = spark.read.csv(str(data_file), header=True, inferSchema=True) 
     df.show(5)
