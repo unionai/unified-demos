@@ -64,8 +64,8 @@ def get_data() -> FlyteFile:
 )
 def train_random_forest(data_file: FlyteFile) -> int:
     spark = flytekit.current_context().spark_session
-    
-    df = spark.read.csv(data_file.download(), header=True, inferSchema=True) 
+    data_file.download()
+    df = spark.read.csv(str(data_file), header=True, inferSchema=True) 
     df.show(5)
     return 0
 
