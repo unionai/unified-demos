@@ -7,29 +7,27 @@ from common.common_dataclasses import ModelProductionTestResults
 from flytekit import FlyteDirectory
 
 
-# Configuration Parameters
+# Configuration parameters
 environment = "dev"
 production_environment = "prod"
 decommission_environment = "decommissioned"
 
-# Artifact Definitions
-model_query = UnifiedTrainedModel.query(
-    environment=environment)
-model_query_prod = UnifiedTrainedModel.query(
-    environment=production_environment)
+# Artifact definitions
+model_query = UnifiedTrainedModel.query(environment=environment)
+model_query_prod = UnifiedTrainedModel.query(environment=production_environment)
 
-ModelProductionTestResultsArtifact = union.artifacts.Artifact(
+ModelProductionTestResultsArtifact = union.Artifact(
     name="unified_demo_model_production_test_results",
 )
 promotion_query = ModelProductionTestResultsArtifact.query()
 
 
-# TASK definitions
-@union.task(
-    container_image=image,
-)
-def tsk_promote_model(target_model: HpoResults, to_environment: str)\
-        -> Annotated[FlyteDirectory, UnifiedTrainedModel]:
+# Task definitions
+@union.task(container_image=image)
+def tsk_promote_model(
+    target_model: HpoResults,
+    to_environment: str,
+) -> Annotated[FlyteDirectory, UnifiedTrainedModel]:
     return UnifiedTrainedModel.create_from(
         target_model.to_flytedir(),
         target_model.get_model_card(),
@@ -37,19 +35,16 @@ def tsk_promote_model(target_model: HpoResults, to_environment: str)\
     )
 
 
-@union.task(
-    container_image=image,
-)
+@union.task(container_image=image)
 def tsk_load_model(model_dir: FlyteDirectory) -> HpoResults:
     return HpoResults.from_flytedir(model_dir)
 
 
-@union.task(
-    container_image=image,
-)
-def tsk_test_model(target_model: HpoResults, prod_model: HpoResults)\
-        -> Annotated[ModelProductionTestResults,
-                     ModelProductionTestResultsArtifact]:
+@union.task(container_image=image)
+def tsk_test_model(
+    target_model: HpoResults,
+    prod_model: HpoResults,
+) -> Annotated[ModelProductionTestResults, ModelProductionTestResultsArtifact]:
     curr_acc = target_model.acc - .04
     target_acc = target_model.acc
     promote_model = target_acc > curr_acc
@@ -62,42 +57,40 @@ def tsk_test_model(target_model: HpoResults, prod_model: HpoResults)\
     )
 
 
-# WORKFLOW definitions
+# Workflow definitions
 @union.workflow
 def test_model_for_production(
-        target_model_dir: FlyteDirectory = model_query,
-        prod_model_dir: FlyteDirectory = model_query_prod
-        ):
-    target_model = tsk_load_model(target_model_dir)\
-        .with_overrides(name="load_target_model")
-    prod_model = tsk_load_model(prod_model_dir)\
-        .with_overrides(name="load_prod_model")
+    target_model_dir: FlyteDirectory = model_query,
+    prod_model_dir: FlyteDirectory = model_query_prod,
+):
+    target_model = tsk_load_model(target_model_dir).with_overrides(name="load_target_model")
+    prod_model = tsk_load_model(prod_model_dir).with_overrides(name="load_prod_model")
     return tsk_test_model(target_model, prod_model)
 
 
 @union.workflow
 def promote_last_dev_to_prod_wf(
-        target_model: FlyteDirectory = model_query
-        ):
-    model = tsk_load_model(target_model)\
-        .with_overrides(name="load_target_model")
-    return tsk_promote_model(model, production_environment)\
-        .with_overrides(name="promote_to_prod")
+    target_model: FlyteDirectory = model_query,
+):
+    model = tsk_load_model(target_model).with_overrides(name="load_target_model")
+    return tsk_promote_model(
+        model,
+        production_environment,
+    ).with_overrides(name="promote_to_prod")
 
 
 @union.workflow
 def promote_to_prod_wf(
-        test_results: ModelProductionTestResults = promotion_query,
-        curr_prod_model: FlyteDirectory = model_query_prod,
-        target_model: FlyteDirectory = model_query
-        ):
-    model = tsk_load_model(target_model)\
-        .with_overrides(name="load_target_model")
-    curr_prod = tsk_load_model(curr_prod_model)\
-        .with_overrides(name="load_curr_prod_model")
-    prod = tsk_promote_model(model, production_environment)\
-        .with_overrides(name="promote_to_prod")
+    test_results: ModelProductionTestResults = promotion_query,
+    curr_prod_model: FlyteDirectory = model_query_prod,
+    target_model: FlyteDirectory = model_query,
+):
+    model = tsk_load_model(target_model).with_overrides(name="load_target_model")
+    curr_prod = tsk_load_model(curr_prod_model).with_overrides(name="load_curr_prod_model")
+    prod = tsk_promote_model(model, production_environment).with_overrides(name="promote_to_prod")
     decom_model = tsk_promote_model(
-        curr_prod, decommission_environment)\
-        .with_overrides(name="decommission_curr_prod")
+        curr_prod,
+        decommission_environment
+    ).with_overrides(name="decommission_curr_prod")
+
     return prod, decom_model
