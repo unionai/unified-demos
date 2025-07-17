@@ -5,6 +5,8 @@ from unified_wfs import image
 from common.common_dataclasses import HpoResults
 from common.common_dataclasses import ModelProductionTestResults
 from flytekit import FlyteDirectory
+from union.remote import UnionRemote
+from union import Secret
 
 
 # Configuration Parameters
@@ -61,6 +63,17 @@ def tsk_test_model(target_model: HpoResults, prod_model: HpoResults)\
         mpr, mpr.get_card()
     )
 
+@union.task(
+    container_image=image,
+    secret_requets=[
+        Secret(
+            key="pablo-api-key", env_var="UNION_API_KEY",
+            mount_requirement=Secret.MountType.ENV_VAR)]
+)
+def tsk_deploy_app_threshold():
+    remote = UnionRemote()
+    remote.deploy_app(app_threshold)
+
 
 # WORKFLOW definitions
 @union.workflow
@@ -101,3 +114,8 @@ def promote_to_prod_wf(
         curr_prod, decommission_environment)\
         .with_overrides(name="decommission_curr_prod")
     return prod, decom_model
+
+
+@union.workflow
+def wf_deploy_app_threshold(art_query: HpoResults = model_query):
+    tsk_deploy_app_threshold()
