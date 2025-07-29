@@ -2,8 +2,8 @@ from datetime import timedelta
 
 import union
 from flytekit import FixedRate
-from union.artifacts import OnArtifact
-from unified_wfs import UnifiedTrainedModel, unified_demo_wf
+from union.artifacts import OnArtifact, Artifact
+from unified_wfs import UnifiedTrainedModel, unified_demo_wf, SearchSpace
 from unified_deploy_wfs import ModelProductionTestResultsArtifact
 from unified_deploy_wfs import test_model_for_production
 from unified_deploy_wfs import promote_to_prod_wf
@@ -22,6 +22,14 @@ unified_demo_launch_plan = union.LaunchPlan.get_or_create(
     unified_demo_wf,
     name="unified_demo_launch_plan",
     auto_activate=True,
+    fixed_inputs={
+        "search_space": SearchSpace(
+            max_depth=[10, 20],
+            max_leaf_nodes=[10, 20],
+            n_estimators=[10, 20]
+        ),
+        "fail": False,
+    },
     schedule=FixedRate(duration=timedelta(minutes=4))
 )
 

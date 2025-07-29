@@ -17,7 +17,7 @@ uv pip install -r requirements.txt
 Train a model
 
 ```bash
-union run --max-parallelism 3 --remote unified_wfs.py unified_demo_wf --fail
+union run --max-parallelism 3 --remote unified_wfs.py unified_demo_wf --inputs-file inputs.yaml
 ```
 
 Activate model training schedule and deployment pipeline:

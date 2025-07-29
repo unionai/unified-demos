@@ -1,0 +1,11 @@
+search_space:
+  max_depth:
+    - 10
+    - 20
+  max_leaf_nodes:
+    - 10
+    - 20
+  n_estimators:
+    - 10
+    - 20
+fail: true

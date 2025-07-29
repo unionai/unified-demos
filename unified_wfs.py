@@ -3,7 +3,7 @@ from typing_extensions import Annotated
 import pandas as pd
 import union
 import union.artifacts
-from flytekit import FlyteDirectory, FixedRate
+from flytekit import FlyteDirectory
 from datasets import load_dataset
 
 from common.functions import get_data_databricks
@@ -114,9 +114,10 @@ def tsk_train_model_hpo_df(
     cache=enable_model_cache,
     cache_version=cache_version)
 def tsk_hyperparameter_optimization(
-        grid: list[Hyperparameters],
-        df: pd.DataFrame) -> list[HpoResults]:
-
+    search_space: SearchSpace,
+    df: pd.DataFrame
+) -> list[HpoResults]:
+    grid = create_search_grid(search_space)
     models = []
     for hp in grid:
         res = tsk_train_model_hpo_df(hp, df)
@@ -153,18 +154,15 @@ def tsk_failure(fail: bool, df: pd.DataFrame, fd: FlyteDirectory) -> None:
 
 # Workflow Definition
 @union.workflow
-def unified_demo_wf(fail: bool = fail_workflow):
+def unified_demo_wf(
+    search_space: SearchSpace,
+    fail: bool = fail_workflow
+):
 
     df = tsk_get_data_hf()
     fdf = tsk_featurize(df)
 
-    ss = SearchSpace(
-        max_depth=[10, 20],
-        max_leaf_nodes=[10, 20],
-        n_estimators=[10, 20])
-
-    grid = create_search_grid(ss)
-    models = tsk_hyperparameter_optimization(grid, fdf)
+    models = tsk_hyperparameter_optimization(search_space, fdf)
     best = tsk_get_best(models)
     logged_artifact = tsk_register_fd_artifact(best)
 
