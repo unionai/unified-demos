@@ -16,7 +16,7 @@ from common.common_dataclasses import HpoResults
 
 
 # Configuration Parameters
-enable_data_cache = True
+enable_data_cache = False
 enable_model_cache = False
 cache_version = "3"
 fail_workflow = False
@@ -29,14 +29,25 @@ UnifiedTrainedModel = union.artifacts.Artifact(
 )
 
 image = union.ImageSpec(
-    builder="union",
     base_image="ghcr.io/unionai-oss/union:py3.10-latest",
     name="unified_demo",
     packages=["scikit-learn", "datasets", "pandas",
               "union", "flytekitplugins-spark", "delta-sharing",
-              "tabulate"],
+              "tabulate", "flytekitplugins-deck-standard"],
 
 )
+
+# Local build
+#image = union.ImageSpec(
+#    builder="envd",
+#    registry="ghcr.io/amperie",
+#    base_image="ghcr.io/unionai-oss/union:py3.10-latest",
+#    name="test-image",
+#    packages=["scikit-learn", "datasets", "pandas",
+#              "union", "flytekitplugins-spark", "delta-sharing",
+#              "tabulate", "flytekitplugins-deck-standard"],
+#
+#)
 
 hpo_actor = union.ActorEnvironment(
     name="hpo-actor",
@@ -57,6 +68,7 @@ hpo_actor = union.ActorEnvironment(
     cache_version=cache_version,
 )
 def tsk_get_data_hf() -> pd.DataFrame:
+
     # Load dataset from HuggingFace and put it in pandas
     ds = load_dataset('AnguloM/loan_data')
     df = ds['train'].to_pandas()
@@ -138,7 +150,7 @@ def tsk_register_fd_artifact(results: HpoResults)\
 
 @union.task(
     container_image=image,
-    requests=union.Resources(mem="6Gi")
+    requests=union.Resources(mem="6Gi"),
 )
 def tsk_failure(fail: bool, df: pd.DataFrame, fd: FlyteDirectory) -> None:
     if fail:
