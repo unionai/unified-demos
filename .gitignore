@@ -5,6 +5,7 @@ __pycache__/
 *.joblib
 
 .venv
+312/
 .vscode
 tmpStorage/
 
