@@ -41,7 +41,7 @@ async def finish(vals: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    flyte.init_from_config("../config.yaml")
+    flyte.init_from_config("config.yaml")
 
     run = flyte.run(hello_driver)
     print(run.name)
