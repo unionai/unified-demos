@@ -1,3 +1,11 @@
+# /// script
+# dependencies = [
+#   "requests<3",
+#   "rich",
+#   "flyte"
+# ]
+# ///
+
 import flyte
 import pandas as pd
 from datasets import load_dataset
@@ -8,11 +16,10 @@ env = flyte.TaskEnvironment(
     name="demo_env",
     resources=flyte.Resources(memory="1Gi"),
     image=flyte.Image.from_debian_base()\
-        .with_pip_packages("pandas", "flyte", "datasets"),
+        .with_pip_packages("pandas", "flyte", "datasets", "unionai-reuse"),
     reusable=flyte.ReusePolicy(
         replicas=3,
-        idle_ttl=30,
-        concurrency=3
+        idle_ttl=30
     )
 )
 
