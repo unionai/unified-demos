@@ -29,25 +29,14 @@ UnifiedTrainedModel = union.artifacts.Artifact(
 )
 
 image = union.ImageSpec(
+    builder="union",
     base_image="ghcr.io/unionai-oss/union:py3.10-latest",
-    name="unified_demo",
+    name="unified_demo_union",
     packages=["scikit-learn", "datasets", "pandas",
               "union", "flytekitplugins-spark", "delta-sharing",
               "tabulate", "flytekitplugins-deck-standard"],
 
 )
-
-# Local build
-#image = union.ImageSpec(
-#    builder="envd",
-#    registry="ghcr.io/amperie",
-#    base_image="ghcr.io/unionai-oss/union:py3.10-latest",
-#    name="test-image",
-#    packages=["scikit-learn", "datasets", "pandas",
-#              "union", "flytekitplugins-spark", "delta-sharing",
-#              "tabulate", "flytekitplugins-deck-standard"],
-#
-#)
 
 hpo_actor = union.ActorEnvironment(
     name="hpo-actor",

@@ -63,9 +63,10 @@ def tsk_test_model(target_model: HpoResults, prod_model: HpoResults)\
         mpr, mpr.get_card()
     )
 
+
 @union.task(
     container_image=image,
-    secret_requets=[
+    secret_requests=[
         Secret(
             key="pablo-api-key", env_var="UNION_API_KEY",
             mount_requirement=Secret.MountType.ENV_VAR)]
