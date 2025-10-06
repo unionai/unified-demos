@@ -18,7 +18,7 @@ from common.common_dataclasses import HpoResults
 # Configuration Parameters
 enable_data_cache = False
 enable_model_cache = False
-cache_version = "3"
+cache_version = "4"
 fail_workflow = False
 environment = "dev"
 
@@ -29,6 +29,7 @@ UnifiedTrainedModel = union.artifacts.Artifact(
 )
 
 image = union.ImageSpec(
+    builder="union",
     builder="union",
     base_image="ghcr.io/unionai-oss/union:py3.10-latest",
     name="unified_demo_union",
