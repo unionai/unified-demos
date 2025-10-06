@@ -3,6 +3,7 @@ import os
 import flyte
 import pandas as pd
 import asyncio
+from typing import Tuple
 from datasets import load_dataset
 
 module_directory = os.path.abspath(os.path.dirname(__file__))
@@ -12,7 +13,8 @@ sys.path.insert(0, module_directory)
 
 from v2.common.functions_featurization import featurize
 from v2.common.functions_training import SearchSpace, Hyperparameters
-from v2.common.functions_training import create_search_grid, get_training_split
+from v2.common.functions_training import create_search_grid, get_training_split, train_classifier
+from v2.common.functions_training import HpoResults
 
 env = flyte.TaskEnvironment(
     name="demo_env",
@@ -43,17 +45,17 @@ async def featurize_data(df: pd.DataFrame) -> pd.DataFrame:
 
 @env.task(cache="auto")
 async def get_search_grid(ss: SearchSpace) -> list[Hyperparameters]:
-    return await create_search_grid(ss)
+    return create_search_grid(ss)
 
 @env.task
-async def get_training_data(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+async def get_training_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     return get_training_split(df)
 
 @env.task()
 async def train_model(
-    hp: Hyperparameters, X_train: pd.DataFrame, X_test: pd.Series,
-    y_train:pd.DataFrame, y_test: pd.Series):
-    return None
+    hp: Hyperparameters, X_train: pd.DataFrame, X_test: pd.DataFrame,
+    y_train:pd.Series, y_test:pd.Series) -> HpoResults:
+    return train_classifier(hp, X_train, X_test, y_train, y_test)
 
 @env.task()
 async def ml_workflow() -> None:
@@ -72,11 +74,14 @@ async def ml_workflow() -> None:
     gs = res[1]
 
     X_train, X_test, y_train, y_test = await get_training_data(fdf)
+    #data_tuple = await get_training_data(fdf)
 
     with flyte.group("hyperparameter_optimization"):
         tasks = [train_model(hp, X_train, X_test, y_train, y_test) for hp in gs]
+        #tasks = [train_model(hp, data_tuple) for hp in gs]
         models = await asyncio.gather(*tasks)
 
+asyncio.run(ml_workflow())
 
 if __name__ == "__main__":
     
