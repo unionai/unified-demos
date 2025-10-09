@@ -1,9 +1,11 @@
+from typing_extensions import Annotated
+
+import pandas as pd
 import union
 import union.artifacts
 from flytekit import FlyteDirectory
 from datasets import load_dataset
-import pandas as pd
-from typing_extensions import Annotated
+
 from common.functions import get_data_databricks
 from common.functions import featurize
 from common.functions import create_search_grid
@@ -32,10 +34,15 @@ image = union.ImageSpec(
     builder="union",
     base_image="ghcr.io/unionai-oss/union:py3.10-latest",
     name="unified_demo",
-    packages=["scikit-learn", "datasets", "pandas",
-              "union", "flytekitplugins-spark", "delta-sharing",
-              "tabulate"],
-
+    packages=[
+        "scikit-learn",
+        "datasets",
+        "pandas",
+        "union",
+        "flytekitplugins-spark",
+        "delta-sharing",
+        "tabulate",
+    ],
 )
 
 hpo_actor = union.ActorEnvironment(
@@ -73,13 +80,12 @@ def tsk_get_data_hf() -> pd.DataFrame:
     secret_requests=[
         union.Secret(
             key="delta_sharing_creds",
-            mount_requirement=union.Secret.MountType.FILE),
+            mount_requirement=union.Secret.MountType.FILE
+        ),
     ]
 )
 def tsk_get_data_databricks() -> pd.DataFrame:
-    creds_file_path =\
-        union.current_context().secrets.get_secrets_file("delta_sharing_creds")
-
+    creds_file_path = union.current_context().secrets.get_secrets_file("delta_sharing_creds")
     return get_data_databricks(creds_file_path)
 
 
@@ -108,9 +114,10 @@ def tsk_train_model_hpo_df(
     cache=enable_model_cache,
     cache_version=cache_version)
 def tsk_hyperparameter_optimization(
-        grid: list[Hyperparameters],
-        df: pd.DataFrame) -> list[HpoResults]:
-
+    search_space: SearchSpace,
+    df: pd.DataFrame
+) -> list[HpoResults]:
+    grid = create_search_grid(search_space)
     models = []
     for hp in grid:
         res = tsk_train_model_hpo_df(hp, df)
@@ -126,14 +133,14 @@ def tsk_get_best(results: list[HpoResults]) -> HpoResults:
 
 
 @hpo_actor.task
-def tsk_register_fd_artifact(results: HpoResults)\
-        -> Annotated[FlyteDirectory, UnifiedTrainedModel]:
-
+def tsk_register_fd_artifact(
+    results: HpoResults
+)-> Annotated[FlyteDirectory, UnifiedTrainedModel]:
     return UnifiedTrainedModel.create_from(
         results.to_flytedir(),
         results.get_model_card(),
         environment=environment
-        )
+    )
 
 
 @union.task(
@@ -147,18 +154,15 @@ def tsk_failure(fail: bool, df: pd.DataFrame, fd: FlyteDirectory) -> None:
 
 # Workflow Definition
 @union.workflow
-def unified_demo_wf(fail: bool = fail_workflow):
+def unified_demo_wf(
+    search_space: SearchSpace,
+    fail: bool = fail_workflow
+):
 
     df = tsk_get_data_hf()
     fdf = tsk_featurize(df)
 
-    ss = SearchSpace(
-        max_depth=[10, 20],
-        max_leaf_nodes=[10, 20],
-        n_estimators=[10, 20])
-
-    grid = create_search_grid(ss)
-    models = tsk_hyperparameter_optimization(grid, fdf)
+    models = tsk_hyperparameter_optimization(search_space, fdf)
     best = tsk_get_best(models)
     logged_artifact = tsk_register_fd_artifact(best)
 

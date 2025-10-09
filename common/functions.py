@@ -83,7 +83,9 @@ def train_classifier_hpo(
     clf = RandomForestClassifier(
         max_depth=hp.max_depth,
         max_leaf_nodes=hp.max_leaf_nodes,
-        n_estimators=hp.n_estimators)
+        n_estimators=hp.n_estimators,
+    )
+
     X_train = splits.get("X_train")
     X_test = splits.get("X_test")
     y_train = splits.get("y_train")
