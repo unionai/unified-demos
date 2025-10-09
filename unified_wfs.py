@@ -30,8 +30,9 @@ UnifiedTrainedModel = union.artifacts.Artifact(
 
 image = union.ImageSpec(
     builder="union",
+    builder="union",
     base_image="ghcr.io/unionai-oss/union:py3.10-latest",
-    name="unified_demo1",
+    name="unified_demo_union",
     packages=["scikit-learn", "datasets", "pandas",
               "union", "flytekitplugins-spark", "delta-sharing",
               "tabulate", "flytekitplugins-deck-standard"],

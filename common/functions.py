@@ -76,27 +76,5 @@ def get_training_split(df: pd.DataFrame)\
     return retVal
 
 
-def train_classifier_hpo(
-        hp: Hyperparameters,
-        splits: DataFrameDict) -> HpoResults:
-
-    clf = RandomForestClassifier(
-        max_depth=hp.max_depth,
-        max_leaf_nodes=hp.max_leaf_nodes,
-        n_estimators=hp.n_estimators)
-    X_train = splits.get("X_train")
-    X_test = splits.get("X_test")
-    y_train = splits.get("y_train")
-    y_test = splits.get("y_test")
-
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_test)
-    acc = metrics.accuracy_score(y_test, y_pred)
-    print("ACCURACY OF THE MODEL:", acc)
-    retVal = HpoResults(hp, acc)
-    retVal.model = clf
-    return retVal
-
-
 def get_best(results: list[HpoResults]) -> HpoResults:
     return max(results, key=lambda x: x.acc)

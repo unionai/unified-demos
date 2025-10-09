@@ -5,4 +5,4 @@ image:
 task:
   domain: development
   org: demo
-  project: flytesnacks
+  project: pablo

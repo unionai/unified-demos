@@ -1,48 +1,22 @@
-from sklearn.base import BaseEstimator
 from dataclasses import dataclass
-from flytekit import FlyteFile
-from flytekit.types.structured import StructuredDataset
-from flytekit import FlyteDirectory
-from union.artifacts import ModelCard
+from itertools import product
 import pandas as pd
+import time
+from sklearn.model_selection import train_test_split
+from joblib import dump, load
 import pickle
 import os
-from joblib import dump, load
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics
-
-
-@dataclass
-class DataSplits():
-    X_train: StructuredDataset
-    X_test: StructuredDataset
-    y_train: pd.Series
-    y_test: pd.Series
-
-
-@dataclass
-class DataFrameDict():
-    _dataframes = {}
-
-    def get(self, key):
-        # return self._dataframes[key].open(pd.DataFrame).all()
-        return self._dataframes[key].dataframe
-
-    def add(self, key, value):
-        if not isinstance(value, pd.DataFrame)\
-                and not isinstance(value, pd.Series):
-            raise TypeError("Item must be a pandas dataframe/series")
-        print(value)
-        sd = StructuredDataset(dataframe=value)
-        self._dataframes[key] = sd
-
+from flyte.io import Dir, File
+from typing import Tuple
+import random
 
 @dataclass
 class Hyperparameters:
     max_depth: int
     max_leaf_nodes: int
     n_estimators: int
-
 
 @dataclass
 class SearchSpace:
@@ -55,11 +29,11 @@ class SearchSpace:
 class HpoResults:
     hp: Hyperparameters
     acc: float
-    _data: FlyteFile = None
-    _model: FlyteFile = None
+    _data: File = None
+    _model: File = None
 
     @property
-    def model(self) -> BaseEstimator:
+    def model(self) -> RandomForestClassifier:
         return self._model
 
     @property
@@ -70,18 +44,20 @@ class HpoResults:
         filename = "pkld_model.pkl"
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
-        return FlyteFile(filename)
+        return File(filename)
 
     def deserialize(filename):
         with open(filename, 'rb') as f:
             return pickle.load(f)
 
     @model.setter
-    def model(self, model: BaseEstimator):
+    def model(self, model: RandomForestClassifier):
         if model is None:
             return
-        dump(model, 'model.joblib')
-        f = FlyteFile('model.joblib')
+        filename = f'model{random.randint(1,100)}.pkl'
+        with open(filename, 'wb') as f:
+            pickle.dump(model, f)
+        f = File(filename)
         self._model = f
 
     @model.getter
@@ -100,17 +76,9 @@ class HpoResults:
     @data.setter
     def data(self, data: pd.DataFrame):
         data.to_parquet('data.parquet')
-        self._data = FlyteFile('data.parquet')
+        self._data = File('data.parquet')
 
-    def get_model_card(self):
-        df = self.data
-        contents = f"Dataset Shape:\n{df.shape}\n\n"\
-            f"Statistics:\n{df.describe(include='all').to_markdown()}\n\n"\
-            f"Correlation:\n{df.corr(numeric_only=True).to_markdown()}\n\n"\
-            f"Sample:\n{df.head(10).to_markdown()}"
-        return ModelCard(contents)
-
-    def to_flytedir(self) -> FlyteDirectory:
+    def to_flytedir(self) -> Dir:
         folder = "tmpStorage"
         if not os.path.exists(folder):
             os.makedirs(folder)
@@ -131,10 +99,10 @@ class HpoResults:
         if data is not None:
             data.to_parquet(os.path.join(folder, 'data.parquet'))
 
-        return FlyteDirectory(folder)
+        return Dir(folder)
 
     @staticmethod
-    def from_flytedir(flytedir: FlyteDirectory):
+    def from_flytedir(flytedir: Dir):
         with open(os.path.join(flytedir, 'vars.pkl'), 'rb') as handle:
             vars = pickle.load(handle)
 
@@ -153,23 +121,43 @@ class HpoResults:
         return retVal
 
 
-class ModelProductionTestResults:
-    promote_model: bool
-    target_model_acc: float
-    current_prod_model_acc: float
 
-    def __init__(
-            self, promote_model: bool, target_model_acc: float,
-            current_prod_model_acc: float):
-        self.promote_model = promote_model
-        self.target_model_acc = target_model_acc
-        self.current_prod_model_acc = current_prod_model_acc
+# TRAINING FUNCTIONS
+def create_search_grid(searchspace: SearchSpace) -> list[Hyperparameters]:
 
-    def get_card(self):
-        if self.promote_model:
-            contents = "Recommendation is to promote the model to prod\n\n"
-        else:
-            contents = "Recommendation is to not promote the model to prod\n\n"
-        contents += f"Target Model F1: {self.target_model_acc}\n\n"\
-            f"Current Production Model F1: {self.current_prod_model_acc}\n"
-        return ModelCard(contents)
+    keys = vars(searchspace).keys()
+    values = [getattr(searchspace, key) for key in keys]
+
+    grid = [Hyperparameters(**dict(zip(keys, combination)))
+            for combination in product(*values)]
+    # Slow it down a tad
+    time.sleep(3)
+    return grid
+
+def get_training_split(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    
+    test_size = .3
+    target_column = "credit_policy"
+
+    y = df[target_column]
+    X = df.drop([target_column], axis=1)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+    return X_train, X_test, y_train, y_test
+
+def train_classifier(
+    hp: Hyperparameters, X_train: pd.DataFrame, X_test: pd.Series,
+    y_train:pd.DataFrame, y_test: pd.Series)-> HpoResults:
+
+    clf = RandomForestClassifier(
+        max_depth=hp.max_depth,
+        max_leaf_nodes=hp.max_leaf_nodes,
+        n_estimators=hp.n_estimators)
+
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+    acc = metrics.accuracy_score(y_test, y_pred)
+    print("ACCURACY OF THE MODEL:", acc)
+    retVal = HpoResults(hp, acc)
+    retVal.model = clf
+    return retVal
