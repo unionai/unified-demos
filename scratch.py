@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-
+from flytekit import conditional
 import union
 
 @dataclass
@@ -26,7 +26,7 @@ def test() -> testOut:
 @union.task(
     container_image=image
 )
-def test2() -> testOut:
+def test2() -> bool:
     return True
 
 @union.workflow
@@ -34,6 +34,10 @@ def wf():
     r=test()
     r2=test2()
     print(r)
+    r_bool = r.var1
+    print(r.var2)
+    b = r.var1 == True
+    conditional("test").if_(1==1).then(print("true"))
 
 if __name__ == "__main__":
     wf()

@@ -1,5 +1,5 @@
 import streamlit as st
-from common.common_dataclasses import HpoResults
+from common_v1.common_dataclasses import HpoResults
 import os
 from apps.app_threshold.model import get_predictions
 from apps.app_threshold.eval import get_metrics_df
