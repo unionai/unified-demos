@@ -8,6 +8,8 @@ import pandas as pd
 import pickle
 import os
 from joblib import dump, load
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import metrics
 
 
 @dataclass

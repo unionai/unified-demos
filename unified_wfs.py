@@ -1,26 +1,31 @@
-from typing_extensions import Annotated
+import os
+import sys
 
-import pandas as pd
+common = os.path.join(os.path.dirname(__file__),"common")
+sys.path.append(os.path.dirname(__file__))
+sys.path.append(common)
+
 import union
 import union.artifacts
 from flytekit import FlyteDirectory
 from datasets import load_dataset
-
-from common.functions import get_data_databricks
-from common.functions import featurize
-from common.functions import create_search_grid
-from common.functions import get_training_split
-from common.functions import train_classifier_hpo
-from common.functions import get_best
-from common.common_dataclasses import SearchSpace
-from common.common_dataclasses import Hyperparameters
-from common.common_dataclasses import HpoResults
+import pandas as pd
+from typing_extensions import Annotated
+from common_v1.functions import get_data_databricks
+from common_v1.functions import featurize
+from common_v1.functions import create_search_grid
+from common_v1.functions import get_training_split
+from common_v1.functions import train_classifier_hpo
+from common_v1.functions import get_best
+from common_v1.common_dataclasses import SearchSpace
+from common_v1.common_dataclasses import Hyperparameters
+from common_v1.common_dataclasses import HpoResults
 
 
 # Configuration Parameters
 enable_data_cache = False
 enable_model_cache = False
-cache_version = "3"
+cache_version = "4"
 fail_workflow = False
 environment = "dev"
 
@@ -33,16 +38,11 @@ UnifiedTrainedModel = union.artifacts.Artifact(
 image = union.ImageSpec(
     builder="union",
     base_image="ghcr.io/unionai-oss/union:py3.10-latest",
-    name="unified_demo",
-    packages=[
-        "scikit-learn",
-        "datasets",
-        "pandas",
-        "union",
-        "flytekitplugins-spark",
-        "delta-sharing",
-        "tabulate",
-    ],
+    name="unified_demo_union",
+    packages=["scikit-learn", "datasets", "pandas",
+              "union", "flytekitplugins-spark", "delta-sharing",
+              "tabulate", "flytekitplugins-deck-standard"],
+
 )
 
 hpo_actor = union.ActorEnvironment(
@@ -64,6 +64,7 @@ hpo_actor = union.ActorEnvironment(
     cache_version=cache_version,
 )
 def tsk_get_data_hf() -> pd.DataFrame:
+
     # Load dataset from HuggingFace and put it in pandas
     ds = load_dataset('AnguloM/loan_data')
     df = ds['train'].to_pandas()
@@ -145,7 +146,7 @@ def tsk_register_fd_artifact(
 
 @union.task(
     container_image=image,
-    requests=union.Resources(mem="6Gi")
+    requests=union.Resources(mem="6Gi"),
 )
 def tsk_failure(fail: bool, df: pd.DataFrame, fd: FlyteDirectory) -> None:
     if fail:

@@ -1,4 +1,4 @@
-from common.common_dataclasses import HpoResults
+from common_v1.common_dataclasses import HpoResults
 from sklearn.model_selection import train_test_split
 import pandas as pd
 from dataclasses import dataclass
