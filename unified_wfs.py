@@ -18,7 +18,7 @@ from common.common_dataclasses import HpoResults
 
 
 # Configuration Parameters
-enable_data_cache = True
+enable_data_cache = False
 enable_model_cache = False
 cache_version = "3"
 fail_workflow = False
@@ -155,14 +155,19 @@ def tsk_failure(fail: bool, df: pd.DataFrame, fd: FlyteDirectory) -> None:
 # Workflow Definition
 @union.workflow
 def unified_demo_wf(
-    search_space: SearchSpace,
     fail: bool = fail_workflow
 ):
 
     df = tsk_get_data_hf()
     fdf = tsk_featurize(df)
 
-    models = tsk_hyperparameter_optimization(search_space, fdf)
+    ss = SearchSpace(
+        max_depth=[10,20],
+        max_leaf_nodes=[10,20],
+        n_estimators=[10,20]
+    )
+
+    models = tsk_hyperparameter_optimization(ss, fdf)
     best = tsk_get_best(models)
     logged_artifact = tsk_register_fd_artifact(best)
 
