@@ -50,14 +50,23 @@ class HpoResults:
         with open(filename, 'rb') as f:
             return pickle.load(f)
 
-    @model.setter
-    def model(self, model: RandomForestClassifier):
+    async def set_model(self, model: RandomForestClassifier):
         if model is None:
             return
-        filename = f'model{random.randint(1,100)}.pkl'
+        filename = f'temp/model{random.randint(1,100)}.pkl'
         with open(filename, 'wb') as f:
             pickle.dump(model, f)
-        f = File(filename)
+        f = await File.from_local(filename)
+        self._model = f
+
+    @model.setter
+    async def model(self, model: RandomForestClassifier):
+        if model is None:
+            return
+        filename = f'temp/model{random.randint(1,100)}.pkl'
+        with open(filename, 'wb') as f:
+            pickle.dump(model, f)
+        f = await File.from_local(filename)
         self._model = f
 
     @model.getter
@@ -145,7 +154,7 @@ def get_training_split(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
     return X_train, X_test, y_train, y_test
 
-def train_classifier(
+async def train_classifier(
     hp: Hyperparameters, X_train: pd.DataFrame, X_test: pd.Series,
     y_train:pd.DataFrame, y_test: pd.Series)-> HpoResults:
 
@@ -159,5 +168,5 @@ def train_classifier(
     acc = metrics.accuracy_score(y_test, y_pred)
     print("ACCURACY OF THE MODEL:", acc)
     retVal = HpoResults(hp, acc)
-    retVal.model = clf
+    await retVal.set_model(clf)
     return retVal
