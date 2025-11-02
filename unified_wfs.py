@@ -1,18 +1,25 @@
+import os
+import sys
+
+common = os.path.join(os.path.dirname(__file__),"common")
+sys.path.append(os.path.dirname(__file__))
+sys.path.append(common)
+
 import union
 import union.artifacts
 from flytekit import FlyteDirectory
 from datasets import load_dataset
 import pandas as pd
 from typing_extensions import Annotated
-from common.functions import get_data_databricks
-from common.functions import featurize
-from common.functions import create_search_grid
-from common.functions import get_training_split
-from common.functions import train_classifier_hpo
-from common.functions import get_best
-from common.common_dataclasses import SearchSpace
-from common.common_dataclasses import Hyperparameters
-from common.common_dataclasses import HpoResults
+from common_v1.functions import get_data_databricks
+from common_v1.functions import featurize
+from common_v1.functions import create_search_grid
+from common_v1.functions import get_training_split
+from common_v1.functions import train_classifier_hpo
+from common_v1.functions import get_best
+from common_v1.common_dataclasses import SearchSpace
+from common_v1.common_dataclasses import Hyperparameters
+from common_v1.common_dataclasses import HpoResults
 
 
 # Configuration Parameters
@@ -29,7 +36,6 @@ UnifiedTrainedModel = union.artifacts.Artifact(
 )
 
 image = union.ImageSpec(
-    builder="union",
     builder="union",
     base_image="ghcr.io/unionai-oss/union:py3.10-latest",
     name="unified_demo_union",

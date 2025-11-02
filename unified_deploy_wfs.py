@@ -2,8 +2,8 @@ import union
 from typing import Annotated
 from unified_wfs import UnifiedTrainedModel
 from unified_wfs import image
-from common.common_dataclasses import HpoResults
-from common.common_dataclasses import ModelProductionTestResults
+from common_v1.common_dataclasses import HpoResults
+from common_v1.common_dataclasses import ModelProductionTestResults
 from flytekit import FlyteDirectory
 from union.remote import UnionRemote
 from union import Secret
