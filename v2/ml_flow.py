@@ -55,7 +55,7 @@ async def get_training_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFram
 async def train_model(
     hp: Hyperparameters, X_train: pd.DataFrame, X_test: pd.DataFrame,
     y_train:pd.Series, y_test:pd.Series) -> HpoResults:
-    return train_classifier(hp, X_train, X_test, y_train, y_test)
+    return await train_classifier(hp, X_train, X_test, y_train, y_test)
 
 @env.task()
 async def ml_workflow() -> None:
@@ -80,6 +80,7 @@ async def ml_workflow() -> None:
         tasks = [train_model(hp, X_train, X_test, y_train, y_test) for hp in gs]
         #tasks = [train_model(hp, data_tuple) for hp in gs]
         models = await asyncio.gather(*tasks)
+        pass
 
 asyncio.run(ml_workflow())
 

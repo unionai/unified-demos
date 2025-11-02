@@ -1,0 +1,8 @@
+admin:
+  endpoint: dns:///genesis.hosted.unionai.cloud
+image:
+  builder: remote
+task:
+  domain: development
+  org: genesis
+  project: flytesnacks
