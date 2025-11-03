@@ -53,10 +53,14 @@ class HpoResults:
     async def set_model(self, model: RandomForestClassifier):
         if model is None:
             return
-        filename = f'temp/model{random.randint(1,100)}.pkl'
+        dir_name = os.path.join(os.path.join(os.path.dirname(__file__), "temp"))
+        os.makedirs(dir_name, exist_ok=True)
+        filename = os.path.join(dir_name, f'model{random.randint(1,100)}.pkl')
+
         with open(filename, 'wb') as f:
             pickle.dump(model, f)
         f = await File.from_local(filename)
+        os.remove(filename)
         self._model = f
 
     @model.setter

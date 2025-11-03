@@ -2,19 +2,21 @@ import sys
 import os
 import flyte
 import pandas as pd
+from pathlib import Path
 import asyncio
 from typing import Tuple
 from datasets import load_dataset
 
-module_directory = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, module_directory)
-module_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, module_directory)
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', ".."))
+sys.path.insert(0, root_dir)
+root_path = Path(root_dir)
 
 from v2.common.functions_featurization import featurize
 from v2.common.functions_training import SearchSpace, Hyperparameters
 from v2.common.functions_training import create_search_grid, get_training_split, train_classifier
 from v2.common.functions_training import HpoResults
+
+CACHE_DATA = "auto"
 
 env = flyte.TaskEnvironment(
     name="demo_env",
@@ -29,7 +31,7 @@ env = flyte.TaskEnvironment(
     )
 )
 
-@env.task(cache="auto")
+@env.task(cache=CACHE_DATA)
 async def get_data() -> pd.DataFrame:
     # Load dataset from HuggingFace and put it in pandas
     ds = load_dataset('AnguloM/loan_data')
@@ -39,15 +41,15 @@ async def get_data() -> pd.DataFrame:
     df = df.reindex(sorted(df.columns), axis=1)
     return df
 
-@env.task(cache="auto")
+@env.task(cache=CACHE_DATA)
 async def featurize_data(df: pd.DataFrame) -> pd.DataFrame:
     return featurize(df)
 
-@env.task(cache="auto")
+@env.task(cache=CACHE_DATA)
 async def get_search_grid(ss: SearchSpace) -> list[Hyperparameters]:
     return create_search_grid(ss)
 
-@env.task
+@env.task(cache=CACHE_DATA)
 async def get_training_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     return get_training_split(df)
 
@@ -82,11 +84,17 @@ async def ml_workflow() -> None:
         models = await asyncio.gather(*tasks)
         pass
 
-asyncio.run(ml_workflow())
+# Uncomment this for local debugging
+# asyncio.run(ml_workflow())
 
 if __name__ == "__main__":
     
-    flyte.init_from_config("../config.yaml")
+    # Run remotely with remote config
+    flyte.init_from_config("../config.yaml", root_dir=root_path)
+
+    # Run locally
+    # flyte.init()
+
     run = flyte.run(ml_workflow)
     print(run.name)
     print(run.url)
